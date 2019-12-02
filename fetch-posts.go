@@ -10,11 +10,13 @@ import (
 	"time"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 var fetched time.Time
+var usersOnce sync.Once
 
 func fetchAllPosts() (err error) {
 	if fetched.After(time.Now().Add(-9 * time.Minute)) {
@@ -135,5 +137,70 @@ func parsePosts(r io.Reader) ([]Post, error) {
 		posts = posts[0:10]
 	}
 	return posts, nil
+}
+
+func fetchUsers() (err error) {
+	usersOnce.Do(func() {
+		users = make(map[string]User)
+	})
+
+	for _, post := range posts {
+		userInfo, err := fetchUserInfo(post.Username)
+		users[post.Username] = userInfo[0]
+		if err != nil {
+			log.Printf("Error fetching %s: %v", post.Username, err)
+			continue
+		}
+	}
+	return err
+}
+
+func fetchUserInfo(username string) ([]User, error) {
+	var err error
+	fetched = time.Now()
+	url := "https://news.ycombinator.com/user?id=" + username
+	log.Printf("Fetching %s", url)
+	resp, geterr := http.Get(url)
+	if geterr != nil {
+		return nil, geterr
+	}
+	if err != nil {
+		return nil, err
+	}
+	userInfo, err := parseUserInfo(username, resp.Body)
+	log.Printf("Got userInfo for %s", username)
+	return userInfo, err
+}
+
+func parseUserInfo(username string, r io.Reader) ([]User, error) {
+	tempUsers := make([]User, 0)
+	doc, err := goquery.NewDocumentFromReader(r)
+	if err != nil {
+		return nil, err
+	}
+	doc.Find(".athing").Each(func(i int, s *goquery.Selection) {
+		createdSibling := s.Next()
+		createdString := createdSibling.Text()[8: len(createdSibling.Text())]
+
+		karmaSibling := createdSibling.Next().Text()
+		re := regexp.MustCompile("[0-9]+")
+		karma, err := strconv.ParseInt(re.FindString(karmaSibling), 10, 64)
+		if err != nil {
+			log.Printf("Couldn't parse karm %s: %v", karmaSibling, err)
+			return
+		}
+
+		user := User {
+			Username:      username,
+			Karma:         karma,
+			CreatedString: createdString,
+			Created:       time.Now(),
+		}
+		tempUsers = append(tempUsers, user)
+	})
+	sort.Slice(tempUsers, func(i, j int) bool {
+		return tempUsers[j].Created.Before(tempUsers[i].Created)
+	})
+	return tempUsers, nil
 }
 

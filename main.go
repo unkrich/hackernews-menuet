@@ -65,6 +65,12 @@ func checkHackerNews() {
 			log.Printf("Error: %v", err)
 			continue
 		}
+
+		err = fetchUsers()
+		if err != nil {
+			log.Printf("Error: %v", err)
+			continue
+		}
 		
 		menuet.App().MenuChanged()
 	}
