@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os/exec"
 	"time"
 
@@ -56,7 +57,17 @@ var users map[string]User
 func checkHackerNews() {
 	menuet.App().SetMenuState(&menuet.MenuState{
 		Title: "|Y| HN",
-	})
+	})	
+	ticker := time.NewTicker(10 * time.Minute)
+	for ; true; <-ticker.C {
+		err := fetchAllPosts()
+		if err != nil {
+			log.Printf("Error: %v", err)
+			continue
+		}
+		
+		menuet.App().MenuChanged()
+	}
 }
 
 func menuItems() []menuet.MenuItem {
