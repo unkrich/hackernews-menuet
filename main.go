@@ -58,7 +58,10 @@ func (p *Post) ChildActions() []menuet.MenuItem {
 	items = append(items, menuet.MenuItem{
 		Text:          fmt.Sprintf("By: %s", p.Username),
 		Clicked:       p.openUserProfile,
-		FontWeight:    menuet.WeightUltraLight,
+		FontWeight:    menuet.WeightUltraLight,		
+		Children:      func() []menuet.MenuItem {
+					       return p.UserItems()
+					   },
 	})
 	// Timestamp posted
 	items = append(items, menuet.MenuItem{
@@ -132,6 +135,49 @@ type User struct {
 
 var posts []Post
 var users map[string]User
+
+func (p *Post) UserItems() []menuet.MenuItem {
+	items := make([]menuet.MenuItem, 0, 5)
+	user := users[p.Username]
+
+	items = append(items, menuet.MenuItem{
+		Text:      fmt.Sprintf("Karma: %d", user.Karma),
+	})
+	items = append(items, menuet.MenuItem{
+		Text:      fmt.Sprintf("Created: %s", user.CreatedString),
+	})
+
+	items = append(items, menuet.MenuItem{
+		Type: menuet.Separator,
+	})
+
+	items = append(items, menuet.MenuItem{
+		Text:      "Submissions",
+		Clicked:   user.openSubmissions,
+	})
+	items = append(items, menuet.MenuItem{
+		Text:      "Comments",
+		Clicked:   user.openComments,
+	})
+	items = append(items, menuet.MenuItem{
+		Text:      "Favorites",
+		Clicked:   user.openFavorites,
+	})
+
+	return items
+}
+
+// User Actions
+func (u *User) openSubmissions() {
+	exec.Command("open", fmt.Sprintf("https://news.ycombinator.com/submitted?id=%s", u.Username)).Run()
+}
+func (u *User) openFavorites() {
+	exec.Command("open", fmt.Sprintf("https://news.ycombinator.com/threads?id=%s", u.Username)).Run()
+}
+
+func (u *User) openComments() {
+		exec.Command("open", fmt.Sprintf("https://news.ycombinator.com/favorites?id=%s", u.Username)).Run()
+}
 
 func checkHackerNews() {
 	menuet.App().SetMenuState(&menuet.MenuState{
